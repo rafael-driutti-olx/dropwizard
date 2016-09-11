@@ -13,6 +13,9 @@ import io.dropwizard.validation.OneOf;
 import io.dropwizard.validation.PortRange;
 import org.hibernate.validator.constraints.NotEmpty;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 import javax.validation.constraints.NotNull;
 
 /**
@@ -41,6 +44,11 @@ import javax.validation.constraints.NotNull;
  *         <td>The prefix for Metric key names to report to Graphite.</td>
  *     </tr>
  *     <tr>
+ *         <td>appendHostname</td>
+ *         <td><i>false</i></td>
+ *         <td>Append hostname to Metric key name.</td>
+ *     </tr>
+ *     <tr>
  *         <td>transport</td>
  *         <td><i>tcp</i></td>
  *         <td>The transport used to report to Graphite. One of {@code tcp} or
@@ -58,6 +66,8 @@ public class GraphiteReporterFactory extends BaseReporterFactory {
 
     @NotNull
     private String prefix = "";
+
+    private boolean appendHostname = false;
 
     @NotNull
     @OneOf(value = {"tcp", "udp"}, ignoreCase = true)
@@ -89,6 +99,16 @@ public class GraphiteReporterFactory extends BaseReporterFactory {
     }
 
     @JsonProperty
+    public boolean getAppendHostname() {
+      return appendHostname;
+    }
+
+    @JsonProperty
+    public void setAppendHostname(boolean appendHostname) {
+      this.appendHostname = appendHostname;
+    }
+
+    @JsonProperty
     public void setPrefix(String prefix) {
         this.prefix = prefix;
     }
@@ -116,6 +136,16 @@ public class GraphiteReporterFactory extends BaseReporterFactory {
 
     @VisibleForTesting
     protected GraphiteReporter.Builder builder(MetricRegistry registry) {
+        String localHostName;
+        if (getAppendHostname() == true) {
+            try {
+                localHostName = InetAddress.getLocalHost().getHostName();
+            } catch (UnknownHostException e) {
+                localHostName = "localhost";
+            }
+
+          prefix = getPrefix() + "." + localHostName;
+        } else prefix = getPrefix();
         return GraphiteReporter.forRegistry(registry)
                 .convertDurationsTo(getDurationUnit())
                 .convertRatesTo(getRateUnit())
